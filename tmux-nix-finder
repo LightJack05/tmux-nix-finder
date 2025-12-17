@@ -131,7 +131,7 @@ main() {
     
     # Stream shell.nix directories directly to fzf for immediate display
     local selected
-    selected=$(find_nix_shells | fzf --tmux=center,100% --prompt="Select shell.nix directory: ")
+    selected=$(find_nix_shells | fzf --tmux=center,100% --prompt="NIX it up: ")
     
     open_session "$selected"
 }
