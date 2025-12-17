@@ -46,12 +46,8 @@ find_nix_shells() {
         local expanded_path="${path/#\~/$HOME}"
         
         if [[ -d "$expanded_path" ]]; then
-            # Find shell.nix files
-            find "$expanded_path" -maxdepth "$MAX_DEPTH" -type f -name "shell.nix" 2>/dev/null | \
-                while IFS= read -r shell_file; do
-                    # Output the parent directory (where the shell.nix is located)
-                    dirname "$shell_file"
-                done
+            # Find shell.nix files and output their parent directories
+            find "$expanded_path" -maxdepth "$MAX_DEPTH" -type f -name "shell.nix" -printf '%h\n' 2>/dev/null
         fi
     done
 }
@@ -69,7 +65,7 @@ open_session() {
     # 2. Remove leading slash
     # 3. Replace dots with underscores (tmux doesn't like dots in session names)
     local session_name
-    session_name=$(echo "$selected" | sed "s@$HOME@@g; s@^\/@@g; s@\.@_@g")
+    session_name=$(echo "$selected" | sed "s@$HOME@@; s@^/@@; s@\.@_@g")
     
     # Check if session already exists
     if tmux has-session -t="$session_name" 2>/dev/null; then
@@ -81,14 +77,13 @@ open_session() {
         fi
     else
         # Create new session with nix-shell
-        # Build the nix-shell command
-        local shell_cmd="nix-shell"
         if [[ -n "$NIX_SHELL_COMMAND" ]]; then
-            shell_cmd="nix-shell --run '$NIX_SHELL_COMMAND'"
+            # Run nix-shell with custom command
+            tmux new-session -d -s "$session_name" -c "$selected" nix-shell --run "$NIX_SHELL_COMMAND"
+        else
+            # Run nix-shell with default behavior
+            tmux new-session -d -s "$session_name" -c "$selected" nix-shell
         fi
-        
-        # Create session and run nix-shell
-        tmux new-session -d -s "$session_name" -c "$selected" "$shell_cmd"
         
         if [[ -n "$TMUX" ]]; then
             tmux switch-client -t "$session_name"
