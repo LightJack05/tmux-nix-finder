@@ -49,7 +49,7 @@ find_nix_shells() {
             # Find shell.nix and flake.nix files and output their parent directories
             find "$expanded_path" -maxdepth "$MAX_DEPTH" -type f \( -name "shell.nix" -o -name "flake.nix" \) -printf '%h\n' 2>/dev/null
         fi
-    done | sort -u  # Remove duplicates and sort for consistent ordering
+    done | awk '!seen[$0]++'  # Remove duplicates while preserving streaming
 }
 
 # Determine which nix command to use for a directory
