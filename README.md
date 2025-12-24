@@ -1,6 +1,6 @@
 # tmux-nix-finder
 
-A simple tool to find shell.nix files in configured directories using fzf with tmux integration, and open them in tmux sessions with nix-shell.
+A simple tool to find shell.nix and flake.nix files in configured directories using fzf with tmux integration, and open them in tmux sessions with nix-shell or nix develop.
 
 > [!CAUTION]
 > THIS TOOL IS AI GENERATED
@@ -10,18 +10,18 @@ A simple tool to find shell.nix files in configured directories using fzf with t
 
 ## Features
 
-- **Find shell.nix Files**: Searches configured directories for shell.nix files
+- **Find Nix Files**: Searches configured directories for shell.nix and flake.nix files
 - **Interactive Selection**: Uses fzf with tmux integration (`fzf --tmux`) for selection
 - **Session Management**: Creates a new tmux session or switches to an existing one for the selected directory
-- **Nix-Shell Integration**: Automatically runs nix-shell in the selected directory
-- **Configurable Shell**: Optionally configure which shell to run inside nix-shell (e.g., zsh, bash)
+- **Smart Nix Integration**: Automatically runs `nix develop` for flake.nix or `nix-shell` for shell.nix
+- **Configurable Shell**: Optionally configure which shell to run inside nix environments (e.g., zsh, bash)
 
 ## Requirements
 
 - `bash`
 - `tmux`
 - `fzf`
-- `nix-shell` (part of Nix package manager)
+- `nix-shell` and/or `nix develop` (part of Nix package manager)
 
 ### Installation on common systems
 
@@ -67,14 +67,14 @@ Then edit the config file to customize your settings.
 ### Configuration Options
 
 ```bash
-# Directories to search for shell.nix files
+# Directories to search for shell.nix and flake.nix files
 SEARCH_PATHS=("$HOME/projects" "$HOME/work")
 
 # Maximum depth to search (default: 3)
 MAX_DEPTH=3
 
-# Optional: Command to run inside nix-shell (e.g., "zsh", "bash")
-# Leave empty for default nix-shell behavior
+# Optional: Command to run inside nix-shell or nix develop (e.g., "zsh", "bash")
+# Leave empty for default behavior
 NIX_SHELL_COMMAND="zsh"
 ```
 
@@ -87,18 +87,18 @@ tmux-nix-finder
 ```
 
 This will:
-1. Find all shell.nix files in configured directories
+1. Find all shell.nix and flake.nix files in configured directories
 2. Present an fzf selection interface (in tmux popup)
 3. On selection, create a new tmux session or switch to an existing one
-4. Automatically run nix-shell in the selected directory
+4. Automatically run `nix develop` (for flake.nix) or `nix-shell` (for shell.nix) in the selected directory
 
-### List shell.nix Directories
+### List Nix Project Directories
 
 ```bash
 tmux-nix-finder --list
 ```
 
-Lists all directories containing shell.nix files without opening them.
+Lists all directories containing shell.nix or flake.nix files without opening them.
 
 ### Help
 
@@ -128,17 +128,18 @@ alias tnf='tmux-nix-finder'
 
 ## How It Works
 
-1. The script searches for `shell.nix` files in the configured directories
+1. The script searches for `shell.nix` and `flake.nix` files in the configured directories
 2. When you select a directory, it creates a tmux session named after the path
-3. In that session, it runs `nix-shell` which:
-   - Reads the `shell.nix` file in that directory
-   - Sets up the development environment specified in the file
-   - Drops you into a shell with all dependencies available
+3. In that session, it runs the appropriate command:
+   - `nix develop` for directories with flake.nix (preferred if both files exist)
+   - `nix-shell` for directories with shell.nix
+4. The command sets up the development environment and drops you into a shell with all dependencies available
 
 This is particularly useful for:
 - Switching between multiple Nix development environments
 - Quickly accessing project-specific tooling
 - Managing isolated development shells for different projects
+- Working with both legacy (shell.nix) and modern (flake.nix) Nix projects
 
 ## License
 
