@@ -106,7 +106,11 @@ open_session() {
             fi
         else
             # Run nix command with default behavior
-            tmux new-session -d -s "$session_name" -c "$selected" $nix_cmd
+            if [[ "$nix_cmd" == "nix develop" ]]; then
+                tmux new-session -d -s "$session_name" -c "$selected" nix develop
+            else
+                tmux new-session -d -s "$session_name" -c "$selected" nix-shell
+            fi
         fi
         
         if [[ -n "$TMUX" ]]; then
