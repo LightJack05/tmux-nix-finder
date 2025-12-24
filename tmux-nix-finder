@@ -98,10 +98,15 @@ open_session() {
         # Create new session with appropriate nix command
         if [[ -n "$NIX_SHELL_COMMAND" ]]; then
             # Run nix command with custom shell
-            tmux new-session -d -s "$session_name" -c "$selected" "$nix_cmd" --run "$NIX_SHELL_COMMAND"
+            # nix-shell uses --run, nix develop uses --command
+            if [[ "$nix_cmd" == "nix develop" ]]; then
+                tmux new-session -d -s "$session_name" -c "$selected" nix develop --command "$NIX_SHELL_COMMAND"
+            else
+                tmux new-session -d -s "$session_name" -c "$selected" nix-shell --run "$NIX_SHELL_COMMAND"
+            fi
         else
             # Run nix command with default behavior
-            tmux new-session -d -s "$session_name" -c "$selected" "$nix_cmd"
+            tmux new-session -d -s "$session_name" -c "$selected" $nix_cmd
         fi
         
         if [[ -n "$TMUX" ]]; then
