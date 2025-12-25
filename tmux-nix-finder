@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tmux-nix-finder: Find shell.nix files and open them in tmux sessions with nix-shell
+# tmux-nix-finder: Find shell.nix and flake.nix files and open them in tmux sessions with nix-shell or nix develop
 
 set -o pipefail
 
@@ -39,17 +39,32 @@ load_config() {
     fi
 }
 
-# Find all shell.nix files in configured paths
+# Find all shell.nix and flake.nix files in configured paths
 find_nix_shells() {
     for path in "${SEARCH_PATHS[@]}"; do
         # Expand path
         local expanded_path="${path/#\~/$HOME}"
         
         if [[ -d "$expanded_path" ]]; then
-            # Find shell.nix files and output their parent directories
-            find "$expanded_path" -maxdepth "$MAX_DEPTH" -type f -name "shell.nix" -printf '%h\n' 2>/dev/null
+            # Find shell.nix and flake.nix files and output their parent directories
+            find "$expanded_path" -maxdepth "$MAX_DEPTH" -type f \( -name "shell.nix" -o -name "flake.nix" \) -printf '%h\n' 2>/dev/null
         fi
-    done
+    done | awk '!seen[$0]++'  # Remove duplicates while preserving streaming
+}
+
+# Determine which nix command to use for a directory
+# Prefers flake.nix if both exist
+get_nix_command() {
+    local dir="$1"
+    
+    if [[ -f "$dir/flake.nix" ]]; then
+        echo "nix develop"
+    elif [[ -f "$dir/shell.nix" ]]; then
+        echo "nix-shell"
+    else
+        # Fallback to nix-shell if no file found (shouldn't happen)
+        echo "nix-shell"
+    fi
 }
 
 # Create or switch to tmux session for the selected directory
@@ -67,6 +82,10 @@ open_session() {
     local session_name
     session_name=$(echo "$selected" | sed "s@$HOME@@; s@^/@@; s@\.@_@g")
     
+    # Determine which nix command to use
+    local nix_cmd
+    nix_cmd=$(get_nix_command "$selected")
+    
     # Check if session already exists
     if tmux has-session -t="$session_name" 2>/dev/null; then
         # Session exists, switch to it
@@ -76,13 +95,22 @@ open_session() {
             tmux attach-session -t "$session_name"
         fi
     else
-        # Create new session with nix-shell
+        # Create new session with appropriate nix command
         if [[ -n "$NIX_SHELL_COMMAND" ]]; then
-            # Run nix-shell with custom command
-            tmux new-session -d -s "$session_name" -c "$selected" nix-shell --run "$NIX_SHELL_COMMAND"
+            # Run nix command with custom shell
+            # nix-shell uses --run, nix develop uses --command
+            if [[ "$nix_cmd" == "nix develop" ]]; then
+                tmux new-session -d -s "$session_name" -c "$selected" nix develop --command "$NIX_SHELL_COMMAND"
+            else
+                tmux new-session -d -s "$session_name" -c "$selected" nix-shell --run "$NIX_SHELL_COMMAND"
+            fi
         else
-            # Run nix-shell with default behavior
-            tmux new-session -d -s "$session_name" -c "$selected" nix-shell
+            # Run nix command with default behavior
+            if [[ "$nix_cmd" == "nix develop" ]]; then
+                tmux new-session -d -s "$session_name" -c "$selected" nix develop
+            else
+                tmux new-session -d -s "$session_name" -c "$selected" nix-shell
+            fi
         fi
         
         if [[ -n "$TMUX" ]]; then
@@ -96,30 +124,36 @@ open_session() {
 # Show help
 show_help() {
     cat << EOF
-tmux-nix-finder - Find shell.nix files and open them in tmux sessions with nix-shell
+tmux-nix-finder - Find shell.nix and flake.nix files and open them in tmux sessions
 
 Usage: tmux-nix-finder [OPTIONS]
 
 Options:
     -h, --help      Show this help message
-    -l, --list      List all shell.nix directories without opening
+    -l, --list      List all nix project directories without opening
 
 Configuration:
     Config file: $CONFIG_FILE
     
     The config file allows you to configure:
-    - SEARCH_PATHS: Array of directories to search for shell.nix files
+    - SEARCH_PATHS: Array of directories to search for nix files
     - MAX_DEPTH: Maximum depth to search (default: 3)
-    - NIX_SHELL_COMMAND: Optional command to run in nix-shell (e.g., "zsh" or "bash")
+    - NIX_SHELL_COMMAND: Optional command to run in nix-shell/nix develop (e.g., "zsh" or "bash")
 
 Example config:
     SEARCH_PATHS=("\$HOME/projects" "\$HOME/work")
     MAX_DEPTH=4
     NIX_SHELL_COMMAND="zsh"
 
+How it works:
+    - Searches for shell.nix and flake.nix files
+    - Uses 'nix develop' for flake.nix (preferred if both exist)
+    - Uses 'nix-shell' for shell.nix
+    - Creates or switches to a tmux session for the selected directory
+
 Examples:
-    tmux-nix-finder              # Interactive shell.nix selection
-    tmux-nix-finder --list       # List all shell.nix directories
+    tmux-nix-finder              # Interactive nix project selection
+    tmux-nix-finder --list       # List all nix project directories
 
 EOF
 }
