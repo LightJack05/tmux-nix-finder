@@ -1,5 +1,8 @@
 # tmux-nix-finder
 
+> [!NOTE]
+> Development of this tool has moved to a local gitea instance: [https://gitea.lightjack.de/LightJack05](https://gitea.lightjack.de/LightJack05)
+
 A simple tool to find shell.nix and flake.nix files in configured directories using fzf with tmux integration, and open them in tmux sessions with nix-shell or nix develop.
 
 > [!CAUTION]
